@@ -376,7 +376,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 
         <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--teal); font-weight:500; font-size:11px; text-decoration:none">Get free API key ↗</a>
       </label>
       <input type="password" id="gemini-key" placeholder="Enter Gemini API key" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid var(--gray-border); border-radius:var(--radius-sm)" oninput="saveGeminiKey()">
-      <p style="font-size:11px; color:var(--text-sec); margin-top:4px">Saved locally on your device.</p>
+      
+      <label for="gemini-model" style="font-size:12px; font-weight:600; color:var(--text-main); display:block; margin-bottom:4px; margin-top:10px">AI Model</label>
+      <select id="gemini-model" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid var(--gray-border); border-radius:var(--radius-sm)" onchange="saveGeminiModel()">
+        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Advanced)</option>
+        <option value="gemini-pro">Gemini 1.0 Pro (Legacy fallback)</option>
+      </select>
+      
+      <p style="font-size:11px; color:var(--text-sec); margin-top:6px">Settings saved locally on your device.</p>
     </div>
 
     <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
@@ -444,6 +452,8 @@ function init() {
   document.getElementById('ref-phone').textContent    = localStorage.getItem('mamacare_ref_phone')    || '—';
   const geminiInput = document.getElementById('gemini-key');
   if (geminiInput) geminiInput.value = localStorage.getItem('mamacare_gemini_key') || '';
+  const geminiModel = document.getElementById('gemini-model');
+  if (geminiModel) geminiModel.value = localStorage.getItem('mamacare_gemini_model') || 'gemini-1.5-flash';
 
   // PWA install prompt capture
   window.addEventListener('beforeinstallprompt', e => {
@@ -700,8 +710,10 @@ async function runAnalysis() {
 
     aiBox.innerHTML = `<div class="ai-output" style="color:var(--text-sec);display:flex;align-items:center;gap:8px"><span class="spinner dark"></span> Getting AI clinical summary…</div>`;
 
+    const apiModel = localStorage.getItem('mamacare_gemini_model') || 'gemini-1.5-flash';
+
     try {
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${apiModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -897,6 +909,11 @@ function editReferral() {
 function saveGeminiKey() {
   const val = document.getElementById('gemini-key').value.trim();
   localStorage.setItem('mamacare_gemini_key', val);
+}
+
+function saveGeminiModel() {
+  const val = document.getElementById('gemini-model').value;
+  localStorage.setItem('mamacare_gemini_model', val);
 }
 
 init();
