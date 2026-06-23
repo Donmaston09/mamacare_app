@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0F6E56">
+<meta name="description" content="Offline-first maternal health CAD tool for rural clinics. Fetal biometry analysis, risk triage, WHO danger signs, and AI clinical summaries.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MamaCare">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-152x152.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+<title>MamaCare CAD</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#0F6E56;--teal-light:#E1F5EE;--teal-mid:#1D9E75;--teal-dark:#085041;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --green:#3B6D11;--green-light:#EAF3DE;
+  --gray:#5F5E5A;--gray-light:#F1EFE8;--gray-border:#D3D1C7;
+  --white:#fff;--text:#2C2C2A;--text-sec:#5F5E5A;
+  --radius:10px;--radius-sm:6px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f6f4;color:var(--text);font-size:15px;line-height:1.5;min-height:100vh;-webkit-text-size-adjust:100%}
+header{background:var(--teal);color:#fff;padding:14px 16px 12px;padding-top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+header svg{flex-shrink:0}
+header h1{font-size:18px;font-weight:600;letter-spacing:-0.2px}
+header p{font-size:12px;opacity:0.8;margin-top:1px}
+#status-bar{background:var(--teal-dark);color:#9FE1CB;font-size:12px;padding:4px 16px;display:flex;justify-content:space-between;align-items:center}
+#online-dot{width:7px;height:7px;border-radius:50%;background:#9FE1CB;display:inline-block;margin-right:5px}
+#online-dot.offline{background:#FAC775}
+main{max-width:680px;margin:0 auto;padding:0 0 calc(80px + var(--safe-bottom))}
+.tab-bar{display:flex;background:#fff;border-bottom:1px solid var(--gray-border);position:sticky;top:55px;z-index:9}
+.tab{flex:1;padding:11px 2px 10px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;color:var(--text-sec);border-bottom:2.5px solid transparent;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.panel{display:none;padding:16px}
+.panel.active{display:block}
+.card{background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+label{font-size:13px;color:var(--text-sec);display:block;margin-bottom:4px;margin-top:10px}
+label:first-of-type{margin-top:0}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--gray-border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:#fff;color:var(--text);outline:none;-webkit-appearance:none;appearance:none}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235F5E5A' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(15,110,86,.12)}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.2px}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-amber{background:var(--amber-light);color:var(--amber)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-teal{background:var(--teal-light);color:var(--teal-dark)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary{background:var(--teal);color:#fff;width:100%}
+.btn-primary:active{background:var(--teal-dark)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-outline{background:#fff;color:var(--teal);border:1px solid var(--teal);width:100%}
+.btn-outline:active{background:var(--teal-light)}
+.risk-box{border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.risk-box.low{background:var(--green-light);border:1px solid #C0DD97}
+.risk-box.moderate{background:var(--amber-light);border:1px solid #FAC775}
+.risk-box.high{background:var(--red-light);border:1px solid #F7C1C1}
+.risk-box h3{font-size:16px;font-weight:600;margin-bottom:6px}
+.risk-box.low h3{color:var(--green)}
+.risk-box.moderate h3{color:var(--amber)}
+.risk-box.high h3{color:var(--red)}
+.risk-box p{font-size:13px;line-height:1.6}
+.finding-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-light)}
+.finding-row:last-child{border-bottom:none}
+.finding-label{flex:1;font-size:13px;color:var(--text-sec)}
+.finding-value{font-size:14px;font-weight:500}
+.ai-output{background:var(--teal-light);border:1px solid #9FE1CB;border-radius:var(--radius);padding:14px;font-size:13px;line-height:1.7;color:var(--teal-dark)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.spinner.dark{border-color:var(--gray-border);border-top-color:var(--teal)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.session-item{border:1px solid var(--gray-border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;background:#fff}
+.session-item h4{font-size:14px;font-weight:500;margin-bottom:3px}
+.session-item p{font-size:12px;color:var(--text-sec)}
+.checklist-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light)}
+.checklist-item:last-child{border-bottom:none}
+.checklist-item input[type=checkbox]{width:20px;height:20px;margin-top:1px;accent-color:var(--red);flex-shrink:0;cursor:pointer}
+.checklist-item label{font-size:13px;color:var(--text);margin:0;cursor:pointer}
+.checklist-item label.checked{text-decoration:line-through;color:var(--text-sec)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-sec)}
+.empty-state p{font-size:14px;margin-top:10px}
+.action-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{background:#fff;border:1px solid var(--gray-border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;color:var(--text-sec)}
+.chip.urgent{background:var(--red-light);border-color:#F7C1C1;color:var(--red)}
+.chip.monitor{background:var(--amber-light);border-color:#FAC775;color:var(--amber)}
+.chip.routine{background:var(--green-light);border-color:#C0DD97;color:var(--green)}
+.offline-note{font-size:12px;color:var(--amber);background:var(--amber-light);border:1px solid #FAC775;border-radius:var(--radius-sm);padding:8px 12px;margin-top:10px;display:none}
+.offline-note.visible{display:block}
+/* Install banner */
+#install-banner{background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);margin:12px 16px 0;padding:14px;display:none;align-items:center;gap:12px}
+#install-banner.visible{display:flex}
+#install-banner img{width:40px;height:40px;border-radius:8px}
+#install-banner div{flex:1}
+#install-banner h3{font-size:14px;font-weight:600;margin-bottom:2px}
+#install-banner p{font-size:12px;color:var(--text-sec)}
+#install-banner .install-actions{display:flex;gap:8px;margin-top:8px}
+#install-banner .install-actions button{padding:7px 14px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;border:none}
+.btn-install{background:var(--teal);color:#fff}
+.btn-dismiss{background:var(--gray-light);color:var(--text-sec)}
+/* Update banner */
+#update-banner{background:var(--teal-light);border:1px solid #9FE1CB;border-radius:var(--radius);margin:12px 16px 0;padding:12px 14px;display:none;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--teal-dark)}
+#update-banner.visible{display:flex}
+/* Disclaimer */
+.disclaimer{background:var(--gray-light);border-left:3px solid var(--gray-border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:10px 12px;font-size:12px;color:var(--text-sec);line-height:1.6;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<header>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+  <circle cx="16" cy="16" r="15" fill="rgba(255,255,255,0.2)"/>
+  <path d="M16 8c-2.2 0-4 1.8-4 4 0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4zm0 5.5c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z" fill="#fff"/>
+  <path d="M9 22c0-1.1 3.1-2 7-2s7 .9 7 2" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
+<div>
+  <h1>MamaCare CAD</h1>
+  <p>Maternal Ultrasound Decision Support</p>
+</div>
+</header>
+
+<div id="status-bar">
+  <span><span id="online-dot"></span><span id="status-text">Checking connection…</span></span>
+  <span id="session-count">0 sessions today</span>
+</div>
+
+<div id="install-banner">
+  <img src="icons/icon-96x96.png" alt="MamaCare icon">
+  <div>
+    <h3>Install MamaCare</h3>
+    <p>Add to home screen for full offline access</p>
+    <div class="install-actions">
+      <button class="btn-install" onclick="triggerInstall()">Install app</button>
+      <button class="btn-dismiss" onclick="dismissInstall()">Not now</button>
+    </div>
+  </div>
+</div>
+
+<div id="update-banner">
+  <span>A new version of MamaCare is available.</span>
+  <button onclick="applyUpdate()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0">Update now</button>
+</div>
+
+<main>
+<div class="tab-bar" role="tablist">
+  <div class="tab active" role="tab" aria-selected="true" onclick="showTab('assess',this)">Assessment</div>
+  <div class="tab" role="tab" aria-selected="false" onclick="showTab('checklist',this)">Danger Signs</div>
+  <div class="tab" role="tab" aria-selected="false" onclick="showTab('history',this)">Sessions</div>
+  <div class="tab" role="tab" aria-selected="false" onclick="showTab('ref',this)">Reference</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ASSESSMENT
+════════════════════════════════════════════════════ -->
+<div id="tab-assess" class="panel active" role="tabpanel">
+
+<div class="disclaimer">
+  This tool provides clinical decision <strong>support</strong> only. All triage recommendations must be verified by a qualified healthcare professional. Not a substitute for clinical judgment.
+</div>
+
+<div class="card">
+  <div class="card-title">Patient &amp; pregnancy</div>
+  <div class="row-2">
+    <div>
+      <label for="patient-id">Patient ID / name</label>
+      <input type="text" id="patient-id" placeholder="e.g. ANC-2024-0041" autocomplete="off">
+    </div>
+    <div>
+      <label for="age">Age (years)</label>
+      <input type="number" id="age" min="12" max="55" placeholder="25" inputmode="numeric">
+    </div>
+  </div>
+  <div class="row-2">
+    <div>
+      <label for="gravida">Gravida</label>
+      <select id="gravida">
+        <option value="">Select</option>
+        <option>G1 (first pregnancy)</option>
+        <option>G2</option>
+        <option>G3</option>
+        <option>G4+</option>
+      </select>
+    </div>
+    <div>
+      <label for="parity">Parity</label>
+      <select id="parity">
+        <option value="">Select</option>
+        <option>P0</option><option>P1</option><option>P2</option><option>P3+</option>
+      </select>
+    </div>
+  </div>
+  <label for="lmp">LMP (last menstrual period)</label>
+  <input type="date" id="lmp">
+  <div id="ga-display" style="margin-top:8px;font-size:13px;color:var(--teal-dark);font-weight:500;display:none"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Fetal biometry (mm)</div>
+  <p style="font-size:12px;color:var(--text-sec);margin-bottom:10px">Enter measurements from probe display. Leave blank if not obtained.</p>
+  <div class="row-3">
+    <div><label for="bpd">BPD</label><input type="number" id="bpd" placeholder="mm" step="0.1" inputmode="decimal"></div>
+    <div><label for="hc">HC</label><input type="number" id="hc" placeholder="mm" step="0.1" inputmode="decimal"></div>
+    <div><label for="ac">AC</label><input type="number" id="ac" placeholder="mm" step="0.1" inputmode="decimal"></div>
+  </div>
+  <div class="row-2" style="margin-top:8px">
+    <div><label for="fl">FL (femur length)</label><input type="number" id="fl" placeholder="mm" step="0.1" inputmode="decimal"></div>
+    <div><label for="afi">AFI (amniotic fluid, cm)</label><input type="number" id="afi" placeholder="cm" step="0.1" inputmode="decimal"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Clinical findings</div>
+  <div class="row-2">
+    <div>
+      <label for="placenta">Placenta position</label>
+      <select id="placenta">
+        <option value="">Not assessed</option>
+        <option>Fundal</option><option>Anterior</option><option>Posterior</option>
+        <option>Low-lying (2–4 cm from os)</option>
+        <option>Previa (covering os)</option>
+      </select>
+    </div>
+    <div>
+      <label for="presentation">Presentation</label>
+      <select id="presentation">
+        <option value="">Not assessed</option>
+        <option>Cephalic (vertex)</option><option>Breech</option>
+        <option>Transverse</option><option>Oblique</option>
+      </select>
+    </div>
+  </div>
+  <div class="row-2" style="margin-top:0">
+    <div><label for="fhr">FHR (bpm)</label><input type="number" id="fhr" placeholder="e.g. 145" min="80" max="220" inputmode="numeric"></div>
+    <div>
+      <label for="fetuses">Number of fetuses</label>
+      <select id="fetuses">
+        <option value="1">Singleton</option>
+        <option value="2">Twins</option>
+        <option value="3">Triplets+</option>
+      </select>
+    </div>
+  </div>
+  <label for="anomalies">Structural anomalies noted (describe or "none")</label>
+  <textarea id="anomalies" rows="2" placeholder="e.g. echogenic bowel, ventriculomegaly — or 'none observed'"></textarea>
+  <label>Maternal BP (mmHg)</label>
+  <div class="row-2">
+    <input type="number" id="bp-sys" placeholder="Systolic" inputmode="numeric">
+    <input type="number" id="bp-dia" placeholder="Diastolic" inputmode="numeric">
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Risk factors</div>
+  <div class="row-2" style="row-gap:10px">
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-htn" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Hypertension Hx</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-dm" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Diabetes</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-prev-cs" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Previous C/S</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-prev-loss" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Prev. pregnancy loss</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-anemia" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Anaemia</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-hiv" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> HIV+</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-sickle" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Sickle cell disease</label>
+    <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="rf-malaria" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"> Malaria in pregnancy</label>
+  </div>
+</div>
+
+<button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis()">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35M11 8v6M8 11h6"/></svg>
+  <span id="btn-text">Analyse &amp; triage</span>
+</button>
+
+<div id="offline-note" class="offline-note">
+  Offline mode — rule-based clinical triage (WHO/FIGO thresholds). AI narrative requires a connection.
+</div>
+
+<div id="result-panel" style="display:none;margin-top:16px">
+  <div id="risk-output"></div>
+  <div id="ai-output-box"></div>
+  <div style="margin-top:12px">
+    <button class="btn btn-outline" id="save-btn" onclick="saveSession()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save to session log
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     DANGER SIGNS
+════════════════════════════════════════════════════ -->
+<div id="tab-checklist" class="panel" role="tabpanel">
+  <div class="card">
+    <div class="card-title">WHO danger signs checklist</div>
+    <p style="font-size:12px;color:var(--text-sec);margin-bottom:12px">Any sign present = escalate immediately. Do not wait for further assessment.</p>
+    <div id="danger-checklist"></div>
+    <div id="danger-summary" style="margin-top:14px;display:none"></div>
+    <button class="btn btn-outline" style="margin-top:14px" onclick="clearChecklist()">Clear all</button>
+  </div>
+  <div class="card" style="background:var(--teal-light);border-color:#9FE1CB">
+    <div class="card-title" style="color:var(--teal-dark)">Emergency contacts</div>
+    <div class="finding-row"><span class="finding-label">Nearest referral hospital</span><span class="finding-value" style="color:var(--teal)" id="ref-hospital">—</span></div>
+    <div class="finding-row"><span class="finding-label">Ambulance / transport</span><span class="finding-value" style="color:var(--teal)">Call 112</span></div>
+    <div class="finding-row"><span class="finding-label">Emergency obstetric</span><span class="finding-value" style="color:var(--teal)" id="ref-phone">—</span></div>
+    <button class="btn btn-outline" style="margin-top:12px;border-color:var(--teal);color:var(--teal)" onclick="editReferral()">Edit emergency contacts</button>
+  </div>
+  <div class="card">
+    <div class="card-title">ALSO mnemonic — obstetric emergencies</div>
+    <div class="finding-row"><span class="finding-label" style="font-weight:500;color:var(--red)">A</span><span class="finding-value" style="font-size:13px">Airway — position, suction, O₂</span></div>
+    <div class="finding-row"><span class="finding-label" style="font-weight:500;color:var(--red)">B</span><span class="finding-value" style="font-size:13px">Breathing — rate, oxygen sat</span></div>
+    <div class="finding-row"><span class="finding-label" style="font-weight:500;color:var(--red)">C</span><span class="finding-value" style="font-size:13px">Circulation — IV access, fluids</span></div>
+    <div class="finding-row"><span class="finding-label" style="font-weight:500;color:var(--red)">D</span><span class="finding-value" style="font-size:13px">Drugs — MgSO₄, oxytocin, antibiotics</span></div>
+    <div class="finding-row"><span class="finding-label" style="font-weight:500;color:var(--red)">E</span><span class="finding-value" style="font-size:13px">Evaluate — call for help, escalate</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SESSIONS
+════════════════════════════════════════════════════ -->
+<div id="tab-history" class="panel" role="tabpanel">
+  <div id="session-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     REFERENCE
+════════════════════════════════════════════════════ -->
+<div id="tab-ref" class="panel" role="tabpanel">
+  <div class="card">
+    <div class="card-title">Fetal biometry (Hadlock/WHO, mean ±2SD)</div>
+    <div id="ref-table"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">AFI interpretation</div>
+    <div class="finding-row"><span class="finding-label">Oligohydramnios</span><span class="finding-value"><span class="badge badge-red">AFI &lt; 5 cm</span></span></div>
+    <div class="finding-row"><span class="finding-label">Normal</span><span class="finding-value"><span class="badge badge-green">5–25 cm</span></span></div>
+    <div class="finding-row"><span class="finding-label">Polyhydramnios</span><span class="finding-value"><span class="badge badge-amber">AFI &gt; 25 cm</span></span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">FHR &amp; BP thresholds</div>
+    <div class="finding-row"><span class="finding-label">Fetal bradycardia</span><span class="finding-value"><span class="badge badge-red">&lt; 110 bpm</span></span></div>
+    <div class="finding-row"><span class="finding-label">Normal FHR</span><span class="finding-value"><span class="badge badge-green">110–160 bpm</span></span></div>
+    <div class="finding-row"><span class="finding-label">Fetal tachycardia</span><span class="finding-value"><span class="badge badge-amber">&gt; 160 bpm</span></span></div>
+    <div class="finding-row" style="margin-top:8px"><span class="finding-label">Normal BP</span><span class="finding-value"><span class="badge badge-green">&lt; 140/90</span></span></div>
+    <div class="finding-row"><span class="finding-label">Mild hypertension</span><span class="finding-value"><span class="badge badge-amber">140–159 / 90–109</span></span></div>
+    <div class="finding-row"><span class="finding-label">Severe hypertension</span><span class="finding-value"><span class="badge badge-red">≥ 160/110</span></span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sub-Saharan Africa context</div>
+    <div style="font-size:13px;color:var(--text-sec);line-height:1.7">
+      <p style="margin-bottom:8px">Leading causes of maternal mortality in SSA: haemorrhage (25%), hypertensive disorders (16%), sepsis (11%), unsafe abortion (8%), obstructed labour (6%).</p>
+      <p style="margin-bottom:8px">MgSO₄ is first-line for eclampsia prophylaxis and treatment. Misoprostol for PPH prevention where oxytocin is unavailable.</p>
+      <p>Malaria in pregnancy increases risk of anaemia, low birth weight, and maternal mortality — treat per national protocol.</p>
+    </div>
+  </div>
+  <div class="card" style="background:var(--gray-light)">
+    <div class="card-title">About &amp; Settings</div>
+    <p style="font-size:12px;color:var(--text-sec);line-height:1.7">
+      <strong>MamaCare CAD v1.0</strong><br>
+      All session data is stored locally on this device only — nothing is sent to any server. AI clinical summaries require an internet connection and are sent directly to the Google Gemini API. Reference values from WHO (2017), Hadlock (1984), FIGO guidelines.
+    </p>
+
+    <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--gray-border); font-size:12px; color:var(--text-sec); line-height:1.6">
+      <strong>Creator:</strong> Tony Onoja, PhD<br>
+      School of Health Sciences, University of Surrey<br>
+      Email: <a href="mailto:donmaston09@gmail.com" style="color:var(--teal)">donmaston09@gmail.com</a><br>
+      Support: <a href="https://paypal.me/Onoja412" target="_blank" rel="noopener" style="color:var(--teal); font-weight:600">paypal.me/Onoja412</a>
+    </div>
+
+    <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--gray-border)">
+      <label for="gemini-key" style="font-size:12px; font-weight:600; color:var(--text-main); display:block; margin-bottom:4px; margin-top:0">Google Gemini API Key</label>
+      <input type="password" id="gemini-key" placeholder="Enter Gemini API key" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid var(--gray-border); border-radius:var(--radius-sm)" oninput="saveGeminiKey()">
+      <p style="font-size:11px; color:var(--text-sec); margin-top:4px">Saved locally on your device.</p>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="badge badge-teal">Offline-first PWA</span>
+      <span class="badge badge-teal">WHO-aligned</span>
+      <span class="badge badge-teal">Local data only</span>
+    </div>
+    <button class="btn btn-outline" style="margin-top:14px;color:var(--red);border-color:var(--red)" onclick="clearAllData()">Clear all local data</button>
+  </div>
+</div>
+</main>
+
+<script>
+// ─── Data ──────────────────────────────────────────────────────────────────────
+const DANGER_SIGNS = [
+  "Vaginal bleeding (any amount)",
+  "Severe headache not relieved by paracetamol",
+  "Visual disturbances (blurring, flashes, spots)",
+  "Facial or hand oedema — sudden onset",
+  "Epigastric / right upper quadrant pain",
+  "Convulsions or loss of consciousness",
+  "Reduced or absent fetal movements (after 28 weeks)",
+  "Fever ≥ 38°C with rigors",
+  "Difficulty breathing or chest pain",
+  "Foul-smelling vaginal discharge",
+  "Persistent vomiting — unable to keep fluids down",
+  "Preterm labour before 37 weeks — regular contractions",
+  "Cord prolapse or cord visible",
+  "Sudden severe abdominal pain"
+];
+
+const BIOMETRY_REF = [
+  {wk:14,bpd:[28,34],hc:[100,116],ac:[86,100],fl:[14,20]},
+  {wk:16,bpd:[34,41],hc:[118,136],ac:[107,125],fl:[19,26]},
+  {wk:18,bpd:[40,48],hc:[136,156],ac:[128,150],fl:[24,32]},
+  {wk:20,bpd:[46,55],hc:[154,178],ac:[150,174],fl:[30,38]},
+  {wk:22,bpd:[52,61],hc:[174,200],ac:[171,199],fl:[35,43]},
+  {wk:24,bpd:[57,67],hc:[193,221],ac:[193,223],fl:[40,49]},
+  {wk:26,bpd:[62,73],hc:[212,244],ac:[215,247],fl:[45,54]},
+  {wk:28,bpd:[67,79],hc:[230,264],ac:[237,271],fl:[49,59]},
+  {wk:30,bpd:[72,84],hc:[247,283],ac:[257,295],fl:[53,63]},
+  {wk:32,bpd:[76,89],hc:[263,301],ac:[277,317],fl:[57,67]},
+  {wk:34,bpd:[80,93],hc:[277,317],ac:[296,338],fl:[60,70]},
+  {wk:36,bpd:[83,97],hc:[289,331],ac:[314,358],fl:[63,73]},
+  {wk:38,bpd:[86,100],hc:[299,343],ac:[330,376],fl:[66,76]},
+  {wk:40,bpd:[88,103],hc:[307,353],ac:[344,392],fl:[68,79]},
+];
+
+let sessions = JSON.parse(localStorage.getItem('mamacare_sessions') || '[]');
+let isOnline = navigator.onLine;
+let currentResult = null;
+let deferredInstallPrompt = null;
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  updateStatus();
+  window.addEventListener('online',  () => { isOnline = true;  updateStatus(); });
+  window.addEventListener('offline', () => { isOnline = false; updateStatus(); });
+  buildChecklist();
+  buildRefTable();
+  renderSessions();
+  updateSessionCount();
+  document.getElementById('lmp').addEventListener('change', calcGA);
+  document.getElementById('ref-hospital').textContent = localStorage.getItem('mamacare_ref_hospital') || '—';
+  document.getElementById('ref-phone').textContent    = localStorage.getItem('mamacare_ref_phone')    || '—';
+  const geminiInput = document.getElementById('gemini-key');
+  if (geminiInput) geminiInput.value = localStorage.getItem('mamacare_gemini_key') || '';
+
+  // PWA install prompt capture
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!localStorage.getItem('mamacare_install_dismissed')) {
+      document.getElementById('install-banner').classList.add('visible');
+    }
+  });
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('install-banner').classList.remove('visible');
+  });
+
+  // Service worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            document.getElementById('update-banner').classList.add('visible');
+            window._newSW = newWorker;
+          }
+        });
+      });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+  }
+}
+
+function updateStatus() {
+  const dot = document.getElementById('online-dot');
+  const txt = document.getElementById('status-text');
+  if (isOnline) { dot.className = '';         txt.textContent = 'Online — AI analysis available'; }
+  else          { dot.className = 'offline';  txt.textContent = 'Offline — rule-based triage active'; }
+}
+
+function applyUpdate() {
+  if (window._newSW) window._newSW.postMessage({ type: 'SKIP_WAITING' });
+}
+
+function triggerInstall() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(() => {
+      deferredInstallPrompt = null;
+      document.getElementById('install-banner').classList.remove('visible');
+    });
+  }
+}
+
+function dismissInstall() {
+  localStorage.setItem('mamacare_install_dismissed', '1');
+  document.getElementById('install-banner').classList.remove('visible');
+}
+
+// ─── Tab navigation ────────────────────────────────────────────────────────────
+function showTab(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+  document.getElementById('tab-' + id).classList.add('active');
+  if (el) { el.classList.add('active'); el.setAttribute('aria-selected','true'); }
+}
+
+// ─── GA calc ───────────────────────────────────────────────────────────────────
+function calcGA() {
+  const lmp = document.getElementById('lmp').value;
+  if (!lmp) return;
+  const days = Math.floor((new Date() - new Date(lmp)) / 86400000);
+  const wks = Math.floor(days / 7), rem = days % 7;
+  const el = document.getElementById('ga-display');
+  if (wks < 4 || wks > 44) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.textContent = `Gestational age: ${wks}w ${rem}d`;
+}
+
+function getGA() {
+  const lmp = document.getElementById('lmp').value;
+  if (!lmp) return null;
+  return Math.floor((new Date() - new Date(lmp)) / (7 * 86400000));
+}
+
+// ─── Data collection ───────────────────────────────────────────────────────────
+function collectData() {
+  return {
+    ga: getGA(),
+    bpd: parseFloat(document.getElementById('bpd').value) || null,
+    hc:  parseFloat(document.getElementById('hc').value)  || null,
+    ac:  parseFloat(document.getElementById('ac').value)  || null,
+    fl:  parseFloat(document.getElementById('fl').value)  || null,
+    afi: parseFloat(document.getElementById('afi').value) || null,
+    fhr: parseFloat(document.getElementById('fhr').value) || null,
+    bpSys: parseFloat(document.getElementById('bp-sys').value) || null,
+    bpDia: parseFloat(document.getElementById('bp-dia').value) || null,
+    presentation: document.getElementById('presentation').value,
+    placenta:     document.getElementById('placenta').value,
+    anomalies:    document.getElementById('anomalies').value.trim(),
+    fetuses: parseInt(document.getElementById('fetuses').value) || 1,
+    rfHtn:      document.getElementById('rf-htn').checked,
+    rfDm:       document.getElementById('rf-dm').checked,
+    rfPrevCs:   document.getElementById('rf-prev-cs').checked,
+    rfPrevLoss: document.getElementById('rf-prev-loss').checked,
+    rfAnemia:   document.getElementById('rf-anemia').checked,
+    rfHiv:      document.getElementById('rf-hiv').checked,
+    rfSickle:   document.getElementById('rf-sickle').checked,
+    rfMalaria:  document.getElementById('rf-malaria').checked,
+    patientId: document.getElementById('patient-id').value.trim() || 'Unknown',
+    age:       parseFloat(document.getElementById('age').value) || null,
+    gravida:   document.getElementById('gravida').value,
+  };
+}
+
+// ─── Rule-based triage engine ─────────────────────────────────────────────────
+function ruleBasedTriage(d) {
+  let flags = [];
+
+  const flag = (sev, msg) => flags.push({ sev, msg });
+
+  if (d.fhr !== null) {
+    if (d.fhr < 110)       flag('high',     `Fetal bradycardia (FHR ${d.fhr} bpm < 110 bpm)`);
+    else if (d.fhr > 160)  flag('moderate', `Fetal tachycardia (FHR ${d.fhr} bpm > 160 bpm)`);
+  }
+
+  if (d.afi !== null) {
+    if (d.afi < 5)         flag('high',     `Oligohydramnios (AFI ${d.afi} cm — threshold < 5 cm)`);
+    else if (d.afi > 25)   flag('moderate', `Polyhydramnios (AFI ${d.afi} cm — threshold > 25 cm)`);
+  }
+
+  if (d.bpSys !== null && d.bpDia !== null) {
+    if (d.bpSys >= 160 || d.bpDia >= 110) flag('high',     `Severe hypertension ${d.bpSys}/${d.bpDia} mmHg — eclampsia risk, give MgSO₄`);
+    else if (d.bpSys >= 140 || d.bpDia >= 90) flag('moderate', `Gestational hypertension ${d.bpSys}/${d.bpDia} mmHg`);
+  }
+
+  if (d.placenta && d.placenta.includes('Previa'))      flag('high',     'Placenta praevia (covering os) — no vaginal examination, plan C/S');
+  if (d.placenta && d.placenta.includes('Low-lying'))   flag('moderate', 'Low-lying placenta — repeat scan at 36 weeks');
+
+  if (d.presentation === 'Breech'     && d.ga && d.ga >= 36) flag('moderate', 'Breech presentation at ≥36 weeks — discuss delivery mode');
+  if (d.presentation === 'Transverse' && d.ga && d.ga >= 36) flag('high',     'Transverse lie at ≥36 weeks — urgent obstetric review');
+
+  if (d.fetuses >= 2) flag('moderate', `Multiple pregnancy (${d.fetuses === 2 ? 'twins' : 'triplets+'}) — increased monitoring required`);
+
+  if (d.anomalies && !['none','none observed','nil','no'].includes(d.anomalies.toLowerCase()) && d.anomalies.length > 2)
+    flag('moderate', `Structural findings noted: "${d.anomalies}" — document and discuss with specialist`);
+
+  // Biometry Z-scores
+  if (d.ga && d.ga >= 14 && d.ga <= 40) {
+    const ref = BIOMETRY_REF.reduce((a, b) => Math.abs(b.wk - d.ga) < Math.abs(a.wk - d.ga) ? b : a);
+    const checks = [
+      { val: d.bpd, ref: ref.bpd, name: 'BPD (biparietal diameter)' },
+      { val: d.hc,  ref: ref.hc,  name: 'HC (head circumference)' },
+      { val: d.ac,  ref: ref.ac,  name: 'AC (abdominal circumference)' },
+      { val: d.fl,  ref: ref.fl,  name: 'FL (femur length)' }
+    ];
+    checks.forEach(c => {
+      if (c.val === null) return;
+      const mean = (c.ref[0] + c.ref[1]) / 2;
+      const sd   = (c.ref[1] - c.ref[0]) / 4;
+      const z    = (c.val - mean) / sd;
+      if (Math.abs(z) > 3)      flag('high',     `${c.name} severely outside range at ${d.ga}w (z=${z.toFixed(1)}) — possible FGR or macrosomia`);
+      else if (Math.abs(z) > 2) flag('moderate', `${c.name} outside normal range at ${d.ga}w (z=${z.toFixed(1)})`);
+    });
+  }
+
+  if (d.age !== null) {
+    if (d.age < 18)       flag('moderate', `Adolescent pregnancy (age ${d.age}) — social support, nutritional counselling`);
+    else if (d.age > 40)  flag('moderate', `Advanced maternal age (${d.age} years) — additional screening recommended`);
+  }
+
+  if (d.rfHtn)      flag('moderate', 'Hypertension history — monitor BP at every visit');
+  if (d.rfDm)       flag('moderate', 'Diabetes — check for macrosomia (AC), monitor blood glucose');
+  if (d.rfPrevCs && d.ga && d.ga >= 36) flag('moderate', 'Previous caesarean section — discuss delivery mode, watch for uterine rupture signs');
+  if (d.rfPrevLoss) flag('moderate', 'Previous pregnancy loss — increased emotional support, close monitoring');
+  if (d.rfSickle)   flag('moderate', 'Sickle cell disease — monitor for crises, folate supplementation, avoid hypoxia');
+  if (d.rfMalaria)  flag('moderate', 'Malaria in pregnancy — treat per national protocol, monitor for anaemia and low birth weight');
+  if (d.rfAnemia)   flag('moderate', 'Anaemia — iron supplementation, dietary counselling, check Hb');
+  if (d.rfHiv)      flag('moderate', 'HIV+ — ensure on PMTCT protocol, monitor CD4 if available');
+
+  const riskLevel = flags.some(f => f.sev === 'high') ? 'high' : flags.some(f => f.sev === 'moderate') ? 'moderate' : 'low';
+  return { riskLevel, flags };
+}
+
+// ─── HTML builders ─────────────────────────────────────────────────────────────
+function buildRiskHTML(result) {
+  const { riskLevel, flags } = result;
+  const labels   = { high: 'High risk — refer urgently', moderate: 'Moderate risk — enhanced monitoring', low: 'Low risk — continue routine ANC' };
+  const actions  = {
+    high:     ['Urgent referral to hospital', 'IV access + MgSO₄ if eclampsia risk', 'Do not delay transport', 'Inform receiving facility', 'Accompany patient if possible'],
+    moderate: ['Increase ANC visit frequency', 'Review within 2 weeks', 'Discuss delivery plan early', 'Document findings in ANC card'],
+    low:      ['Continue standard ANC schedule', 'Next visit per national protocol', 'Iron + folate supplementation', 'Counsel on danger signs to watch for']
+  };
+
+  let html = `<div class="risk-box ${riskLevel}"><h3>${labels[riskLevel]}</h3>`;
+  if (flags.length === 0) {
+    html += `<p>No specific concerns identified from the data entered. Continue standard antenatal care.</p>`;
+  } else {
+    html += `<p style="font-weight:500;margin-bottom:8px">${flags.length} finding${flags.length > 1 ? 's' : ''}:</p>`;
+    flags.forEach(f => {
+      const col = f.sev === 'high' ? 'var(--red)' : 'var(--amber)';
+      html += `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;margin-top:5px"></div>
+        <p style="font-size:13px;line-height:1.5">${f.msg}</p></div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<div class="card" style="margin-top:4px"><div class="card-title">Recommended actions</div>
+    <div class="action-chips">`;
+  const cls = riskLevel === 'high' ? 'urgent' : riskLevel === 'moderate' ? 'monitor' : 'routine';
+  actions[riskLevel].forEach(a => { html += `<span class="chip ${cls}">${a}</span>`; });
+  html += `</div></div>`;
+
+  return html;
+}
+
+// ─── Main analysis ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const d = collectData();
+  if (!d.ga && !d.bpd && !d.fhr && !d.bpSys && !d.afi) {
+    alert('Please enter at least gestational age (LMP) or some measurements before analysing.');
+    return;
+  }
+
+  const btn    = document.getElementById('analyze-btn');
+  const btnTxt = document.getElementById('btn-text');
+  btn.disabled = true;
+  btnTxt.innerHTML = '<span class="spinner"></span> Analysing…';
+
+  const result = ruleBasedTriage(d);
+  currentResult = { d, result, time: new Date().toISOString(), saved: false };
+
+  document.getElementById('risk-output').innerHTML = buildRiskHTML(result);
+  document.getElementById('save-btn').textContent = 'Save to session log';
+
+  const aiBox       = document.getElementById('ai-output-box');
+  const offlineNote = document.getElementById('offline-note');
+
+  if (isOnline) {
+    offlineNote.classList.remove('visible');
+
+    const apiKey = localStorage.getItem('mamacare_gemini_key') || '';
+    if (!apiKey) {
+      aiBox.innerHTML = `
+        <div class="offline-note visible" style="background:#FFF8E1; border-color:#FFE082; color:#B78103">
+          <strong>Google Gemini API Key Required:</strong><br>
+          AI clinical summaries require a Google Gemini API key. Please enter your API key in the <strong>Reference</strong> tab.
+          <button class="btn btn-outline" style="margin-top:10px; width:auto; padding:6px 12px; font-size:12px" onclick="showTab('ref')">Go to Reference Tab</button>
+        </div>`;
+      document.getElementById('result-panel').style.display = 'block';
+      setTimeout(() => document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      btn.disabled = false;
+      btnTxt.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Done — re-run`;
+      return;
+    }
+
+    aiBox.innerHTML = `<div class="ai-output" style="color:var(--text-sec);display:flex;align-items:center;gap:8px"><span class="spinner dark"></span> Getting AI clinical summary…</div>`;
+
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: buildPrompt(d, result) }]
+          }],
+          systemInstruction: {
+            parts: [{ text: `You are a clinical decision support assistant for maternal health in Sub-Saharan Africa. You help midwives and general practitioners at rural clinics interpret obstetric ultrasound findings. Be concise, clinical, and practical. Always write for a clinician with limited specialist backup. Output 150–200 words. Format: paragraph 1 = clinical picture, paragraph 2 = key concern(s), paragraph 3 = single priority action. Never diagnose. Support clinical reasoning only.` }]
+          },
+          generationConfig: {
+            maxOutputTokens: 700,
+            temperature: 0.2
+          }
+        })
+      });
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || \`HTTP \${resp.status}\`);
+      }
+      const data = await resp.json();
+      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+      aiBox.innerHTML = `
+        <div style="margin-bottom:8px;font-size:12px;color:var(--teal-dark);font-weight:500;display:flex;align-items:center;gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          AI clinical summary
+        </div>
+        <div class="ai-output">${txt.replace(/\n\n/g,'</p><p style="margin-top:8px">').replace(/\n/g,'<br>').replace(/^/,'<p>').replace(/$/,'</p>')}</div>`;
+      currentResult.aiSummary = txt;
+    } catch (e) {
+      aiBox.innerHTML = `<div class="offline-note visible">AI summary unavailable (${e.message}). Rule-based triage above is valid.</div>`;
+    }
+  } else {
+    offlineNote.classList.add('visible');
+    aiBox.innerHTML = '';
+  }
+
+  document.getElementById('result-panel').style.display = 'block';
+  setTimeout(() => document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  btn.disabled = false;
+  btnTxt.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Done — re-run`;
+}
+
+function buildPrompt(d, result) {
+  const parts = [
+    `Patient: ${d.patientId}, age ${d.age || 'unknown'}, ${d.gravida || 'gravida unknown'}`,
+    d.ga ? `GA: ${d.ga} weeks` : null,
+    d.bpd ? `BPD: ${d.bpd}mm` : null, d.hc ? `HC: ${d.hc}mm` : null,
+    d.ac  ? `AC: ${d.ac}mm`  : null, d.fl ? `FL: ${d.fl}mm` : null,
+    d.afi ? `AFI: ${d.afi}cm` : null, d.fhr ? `FHR: ${d.fhr}bpm` : null,
+    d.bpSys ? `BP: ${d.bpSys}/${d.bpDia}mmHg` : null,
+    d.placenta     ? `Placenta: ${d.placenta}`      : null,
+    d.presentation ? `Presentation: ${d.presentation}` : null,
+    d.fetuses > 1  ? `Multiple pregnancy: ${d.fetuses}` : null,
+    d.anomalies    ? `Anomalies: ${d.anomalies}` : null,
+  ].filter(Boolean);
+
+  const rfs = [
+    d.rfHtn && 'hypertension Hx', d.rfDm && 'diabetes', d.rfPrevCs && 'prev C/S',
+    d.rfPrevLoss && 'prev loss', d.rfAnemia && 'anaemia', d.rfHiv && 'HIV+',
+    d.rfSickle && 'sickle cell', d.rfMalaria && 'malaria in pregnancy'
+  ].filter(Boolean);
+  if (rfs.length) parts.push(`Risk factors: ${rfs.join(', ')}`);
+  parts.push(`Rule-based triage: ${result.riskLevel} risk`);
+  if (result.flags.length) parts.push(`Flags: ${result.flags.map(f => f.msg).join('; ')}`);
+
+  return `Summarise the clinical picture for a midwife or GP at a rural Sub-Saharan African clinic:\n${parts.join('. ')}.`;
+}
+
+// ─── Session management ────────────────────────────────────────────────────────
+function saveSession() {
+  if (!currentResult || currentResult.saved) return;
+  sessions.unshift({
+    id: Date.now(),
+    patientId:  currentResult.d.patientId,
+    ga:         currentResult.d.ga,
+    risk:       currentResult.result.riskLevel,
+    flags:      currentResult.result.flags.length,
+    time:       currentResult.time,
+    aiSummary:  currentResult.aiSummary || null,
+    flagList:   currentResult.result.flags.map(f => f.msg)
+  });
+  if (sessions.length > 100) sessions = sessions.slice(0, 100);
+  localStorage.setItem('mamacare_sessions', JSON.stringify(sessions));
+  currentResult.saved = true;
+  document.getElementById('save-btn').innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Saved`;
+  renderSessions();
+  updateSessionCount();
+}
+
+function renderSessions() {
+  const container = document.getElementById('session-list');
+  if (sessions.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <p>No sessions yet.<br>Complete an assessment and save it.</p></div>`;
+    return;
+  }
+  const riskColors = { low: 'badge-green', moderate: 'badge-amber', high: 'badge-red' };
+  container.innerHTML = sessions.map(s => {
+    const d = new Date(s.time);
+    return `<div class="session-item">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <h4>${s.patientId}</h4>
+        <span class="badge ${riskColors[s.risk]}">${s.risk} risk</span>
+      </div>
+      <p>${s.ga ? s.ga + 'w GA · ' : ''}${s.flags} flag${s.flags !== 1 ? 's' : ''} · ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+      ${s.flagList && s.flagList.length ? `<p style="font-size:11px;color:var(--text-sec);margin-top:3px">${s.flagList.slice(0,2).join(' · ')}${s.flagList.length > 2 ? ' …' : ''}</p>` : ''}
+      ${s.aiSummary ? `<p style="font-size:11px;color:var(--teal-dark);margin-top:3px;font-weight:500">AI summary available</p>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function updateSessionCount() {
+  const today = new Date().toDateString();
+  const n = sessions.filter(s => new Date(s.time).toDateString() === today).length;
+  document.getElementById('session-count').textContent = `${n} session${n !== 1 ? 's' : ''} today`;
+}
+
+function clearAllData() {
+  if (!confirm('Delete all session data from this device? This cannot be undone.')) return;
+  localStorage.clear();
+  sessions = [];
+  renderSessions();
+  updateSessionCount();
+}
+
+// ─── Danger signs checklist ────────────────────────────────────────────────────
+function buildChecklist() {
+  const c = document.getElementById('danger-checklist');
+  DANGER_SIGNS.forEach((sign, i) => {
+    const div = document.createElement('div');
+    div.className = 'checklist-item';
+    div.innerHTML = `<input type="checkbox" id="ds${i}" onchange="updateDangerSummary()">
+      <label for="ds${i}" id="dsl${i}">${sign}</label>`;
+    c.appendChild(div);
+  });
+}
+
+function updateDangerSummary() {
+  const ticked = DANGER_SIGNS.filter((_, i) => document.getElementById(`ds${i}`)?.checked);
+  DANGER_SIGNS.forEach((_, i) => {
+    const lbl = document.getElementById(`dsl${i}`);
+    if (lbl) lbl.className = document.getElementById(`ds${i}`)?.checked ? 'checked' : '';
+  });
+  const summary = document.getElementById('danger-summary');
+  if (ticked.length === 0) { summary.style.display = 'none'; return; }
+  summary.style.display = 'block';
+  summary.innerHTML = `<div class="risk-box high"><h3>⚠ ${ticked.length} danger sign${ticked.length > 1 ? 's' : ''} present</h3>
+    <p>Immediate referral required. Stabilise and transfer now. Do not wait for scan results.</p>
+    <div style="margin-top:8px">${ticked.map(s=>`<div style="display:flex;gap:6px;margin-bottom:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px"></div><p style="font-size:12px">${s}</p></div>`).join('')}</div>
+  </div>`;
+}
+
+function clearChecklist() {
+  DANGER_SIGNS.forEach((_, i) => {
+    const cb = document.getElementById(`ds${i}`);
+    const lbl = document.getElementById(`dsl${i}`);
+    if (cb) cb.checked = false;
+    if (lbl) lbl.className = '';
+  });
+  document.getElementById('danger-summary').style.display = 'none';
+}
+
+// ─── Reference table ───────────────────────────────────────────────────────────
+function buildRefTable() {
+  const c = document.getElementById('ref-table');
+  let html = `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead><tr style="font-weight:600;color:var(--text-sec);border-bottom:1px solid var(--gray-border)">
+      <td style="padding:5px 6px">Wks</td><td style="padding:5px 6px">BPD</td>
+      <td style="padding:5px 6px">HC</td><td style="padding:5px 6px">AC</td><td style="padding:5px 6px">FL</td>
+    </tr></thead><tbody>`;
+  BIOMETRY_REF.forEach(r => {
+    html += `<tr style="border-bottom:1px solid var(--gray-light)">
+      <td style="padding:5px 6px;font-weight:500">${r.wk}w</td>
+      <td style="padding:5px 6px">${r.bpd[0]}–${r.bpd[1]}</td>
+      <td style="padding:5px 6px">${r.hc[0]}–${r.hc[1]}</td>
+      <td style="padding:5px 6px">${r.ac[0]}–${r.ac[1]}</td>
+      <td style="padding:5px 6px">${r.fl[0]}–${r.fl[1]}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  c.innerHTML = html;
+}
+
+// ─── Referral contacts ─────────────────────────────────────────────────────────
+function editReferral() {
+  const hosp  = prompt('Nearest referral hospital:', localStorage.getItem('mamacare_ref_hospital') || '');
+  if (hosp !== null) { localStorage.setItem('mamacare_ref_hospital', hosp); document.getElementById('ref-hospital').textContent = hosp || '—'; }
+  const phone = prompt('Emergency obstetric phone:', localStorage.getItem('mamacare_ref_phone') || '');
+  if (phone !== null) { localStorage.setItem('mamacare_ref_phone', phone); document.getElementById('ref-phone').textContent = phone || '—'; }
+}
+
+function saveGeminiKey() {
+  const val = document.getElementById('gemini-key').value.trim();
+  localStorage.setItem('mamacare_gemini_key', val);
+}
+
+init();
+</script>
+</body>
+</html>
