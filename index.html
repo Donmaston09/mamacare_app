@@ -371,7 +371,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 
     </div>
 
     <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--gray-border)">
-      <label for="gemini-key" style="font-size:12px; font-weight:600; color:var(--text-main); display:block; margin-bottom:4px; margin-top:0">Google Gemini API Key</label>
+      <label for="gemini-key" style="font-size:12px; font-weight:600; color:var(--text-main); display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; margin-top:0">
+        Google Gemini API Key
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--teal); font-weight:500; font-size:11px; text-decoration:none">Get free API key ↗</a>
+      </label>
       <input type="password" id="gemini-key" placeholder="Enter Gemini API key" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid var(--gray-border); border-radius:var(--radius-sm)" oninput="saveGeminiKey()">
       <p style="font-size:11px; color:var(--text-sec); margin-top:4px">Saved locally on your device.</p>
     </div>
