@@ -142,6 +142,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 
   </div>
 </div>
 
+<div id="ios-install-banner" style="display:none; align-items:center; background:#E0F2F1; border:1px solid #B2DFDB; padding:12px; margin:10px 16px; border-radius:8px; font-size:13px; color:#004D40;">
+  <div>
+    <strong>Install on iPhone</strong><br>
+    Tap the <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin:0 2px;transform:translateY(-1px)"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 3v13M8 7l4-4 4 4"/></svg> Share button, then tap "Add to Home Screen".
+  </div>
+  <button onclick="dismissIosInstall()" style="background:none; border:none; color:#00796B; font-weight:600; cursor:pointer; padding:6px; margin-left:auto">Dismiss</button>
+</div>
+
 <div id="update-banner">
   <span>A new version of MamaCare is available.</span>
   <button onclick="applyUpdate()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0">Update now</button>
@@ -466,6 +474,13 @@ function init() {
   window.addEventListener('appinstalled', () => {
     document.getElementById('install-banner').classList.remove('visible');
   });
+
+  // iOS Fallback install banner
+  const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+  const isStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+  if (isIos() && !isStandalone && !localStorage.getItem('mamacare_ios_install_dismissed')) {
+    document.getElementById('ios-install-banner').style.display = 'flex';
+  }
 
   // Service worker registration
   if ('serviceWorker' in navigator) {
@@ -914,6 +929,11 @@ function saveGeminiKey() {
 function saveGeminiModel() {
   const val = document.getElementById('gemini-model').value;
   localStorage.setItem('mamacare_gemini_model', val);
+}
+
+function dismissIosInstall() {
+  localStorage.setItem('mamacare_ios_install_dismissed', '1');
+  document.getElementById('ios-install-banner').style.display = 'none';
 }
 
 init();
